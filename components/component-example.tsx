@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { IconPlus, IconBluetooth, IconDotsVertical, IconFile, IconFolder, IconFolderOpen, IconFileCode, IconDots, IconFolderSearch, IconDeviceFloppy, IconDownload, IconEye, IconLayout, IconPalette, IconSun, IconMoon, IconDeviceDesktop, IconUser, IconCreditCard, IconSettings, IconKeyboard, IconLanguage, IconBell, IconMail, IconShield, IconHelpCircle, IconFileText, IconLogout } from "@tabler/icons-react"
+import { ModeToggle } from "./mode-toggle"
 
 export function ComponentExample() {
   return (
@@ -420,6 +421,7 @@ function FormExample() {
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
+            <ModeToggle />
           </CardAction>
         </CardHeader>
         <CardContent>
