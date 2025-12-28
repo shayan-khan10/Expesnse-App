@@ -1,15 +1,6 @@
 "use client"
 
 import {
-  IconCategory2,
-  IconHome,
-  IconUsers,
-  IconReportMoney,
-  IconBrandGoogleAnalytics,
-  IconUser,
-} from "@tabler/icons-react"
-
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -25,20 +16,7 @@ import {
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-
-// Menu items.
-const navigation = [
-  { title: "Home", url: "/", icon: IconHome },
-  { title: "Family", url: "/family", icon: IconUsers },
-  { title: "Categories", url: "/categories", icon: IconCategory2 },
-  { title: "Expenses", url: "/expenses", icon: IconReportMoney },
-  { title: "Analytics", url: "/analytics", icon: IconBrandGoogleAnalytics },
-]
-
-// Setting items.
-const settings = [
-  { title: "Profile", url: "/profile", icon: IconUser },
-]
+import { navigation, settings } from "./items"
 
 export function AppSidebar() {
   const pathname = usePathname()

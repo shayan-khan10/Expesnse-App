@@ -9,12 +9,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useLogout } from "@/hooks/use-logout"
+import { ConfrimLogout } from "./confirm-logout"
 import { Separator } from "../ui/separator"
 
 export function AppAvatar() {
-
-  const { logout } = useLogout()
 
   return (
     <div className="ml-auto flex items-center gap-4">
@@ -36,9 +34,7 @@ export function AppAvatar() {
             orientation="horizontal"
             className="my-1 data-[orientation=horizontal]"
             />
-          <DropdownMenuItem onClick={logout} variant="destructive">
-            Logout
-          </DropdownMenuItem>
+            <ConfrimLogout />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

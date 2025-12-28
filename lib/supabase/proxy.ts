@@ -42,10 +42,18 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+const PUBLIC_ROUTES = [
+    "/login",
+    "/sign-up",
+    "/sign-up-success",
+    "/forgot-password",
+    "/update-password",
+    "/error",
+  ];
+
+
   const isPublicRoute =
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup");
+    PUBLIC_ROUTES.includes(pathname);
 
   if (!user && !isPublicRoute) {
     // no user, redirect to login page
