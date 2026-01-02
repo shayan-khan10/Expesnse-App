@@ -2,7 +2,7 @@
 
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { usePathname } from "next/navigation"
-import { ModeToggle } from "../mode-toggle"
+import { ModeToggle } from "./mode-toggle"
 import { Separator } from "../ui/separator"
 import { AppAvatar } from "./app-avatar"
 import { navigation, settings } from "./items"
