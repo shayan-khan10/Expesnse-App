@@ -40,7 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-DATABASE.md
+# DATABASE.md
+# expenses.txt
 categories.txt
 family.txt
-Refactor.md
+# Refactor.md

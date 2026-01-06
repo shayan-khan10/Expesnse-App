@@ -1,0 +1,418 @@
+the code that needs to be refactored
+
+'use client';
+
+import { useState, useEffect } from "react";
+import { AppSidebarLayout } from "@/components/app-sidebar";
+import { AppNavbar } from "@/components/app-navbar";
+import Link from "next/link";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { useUserSession } from "@/hooks/userSession";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { ArrowBigRight, Pencil, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDate, formatTime } from "@/utils/formatTimestamp";
+import { formatNumber } from "@/utils/formatNumber";
+
+interface Family {
+    id: string;
+    name: string;
+    join_code: string;
+    spending_limit: number | null;
+    created_at: string;
+  }
+
+export default function ExpensesPage () {
+
+    const { userProfile } = useUserSession();
+    const [family, setFamily] = useState<Family | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [personalTotal, setPersonalTotal] = useState<number>(0);
+    const [familyTotal, setFamilyTotal] = useState<number>(0);
+    const [r_expenses, setR_Expenses] = useState<any[]>([]);
+    const [p_expenses, setP_Expenses] = useState<any[]>([]);
+
+    // Fetch user's family data
+    const fetchFamilyData = async () => {
+        if (!userProfile) return;
+
+    try {
+        // Get user's family membership
+        const { data: membership, error: membershipError } = await supabaseBrowser
+            .from('family_members')
+            .select('*')
+            .eq('user_id', userProfile?.id)
+            .single();
+
+        if (membershipError && membershipError.code !== 'PGRST116') {
+            console.error('Error fetching family membership:', membershipError);
+            return;
+        }
+
+        if (membership) {
+
+            // Fetch family details separately
+            const { data: familyData, error: familyError } = await supabaseBrowser
+            .from('families')
+            .select('*')
+            .eq('id', membership.family_id)
+            .single();
+            
+            if (familyError) {
+            console.error('Error fetching family:', familyError);
+            return;
+            }
+        
+            setFamily(familyData);
+          
+          }
+
+        } catch (error) {
+          console.error('Error fetching family data:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const fetchPersonalTotal = async () => {
+        if (!userProfile) return;
+      
+        const { data, error } = await supabaseBrowser
+          .from("expenses")
+          .select("amount")
+          .eq("user_id", userProfile.id);
+      
+        if (error) {
+          console.error("Error fetching total by user_id:", error);
+        } else {
+          const total = data?.reduce((sum, row) => sum + (row.amount || 0), 0);
+          setPersonalTotal(total);
+          console.log("User total amount:", total);
+        }
+      };
+
+      const fetchFamilyTotal = async () => {
+        if (!userProfile) return;
+        if (!family?.id) return;
+      
+        const { data, error } = await supabaseBrowser
+          .from("expenses")
+          .select("amount")
+          .eq("family_id", family?.id);
+      
+        if (error) {
+          console.error("Error fetching total by family_id:", error);
+        } else {
+          const total = data?.reduce((sum, row) => sum + (row.amount || 0), 0);
+          setFamilyTotal(total);
+          console.log("Family total amount:", total);
+        }
+      };
+
+      const fetchRecentExpenses = async () => {
+        if (!userProfile) return;
+        if (!family?.id) return;
+  
+        const { data: expenses, error: expensesError } = await supabaseBrowser
+            .from("recent_family_expenses")
+            .select(`
+            *,
+            categories (
+                name
+              )
+            `)
+            .eq("family_id", family?.id)
+            .limit(5);
+    
+        if (expensesError) {
+          console.error('Error fetching:', expensesError);
+        } else {
+            setR_Expenses(expenses);
+            console.log('fetched data:', expenses);
+        }
+      };
+      
+      const fetchPersonalExpenses = async () => {
+        if (!userProfile) return;
+  
+        const { data: expenses, error: expensesError } = await supabaseBrowser
+            .from("expenses")
+            .select(`
+            *,
+            categories (
+                name
+              )
+            `)
+            .eq("user_id", userProfile?.id);
+    
+        if (expensesError) {
+          console.error('Error fetching:', expensesError);
+        } else {
+            setP_Expenses(expenses);
+            console.log('fetched data:', expenses);
+        }
+      };
+
+      const deleteExpense = async (expense_id: string) => {
+        if (!userProfile) return;
+      
+        const { error } = await supabaseBrowser
+          .from('expenses')
+          .delete()
+          .eq('id', expense_id)
+          .eq('user_id', userProfile.id); // Ensure only user's expense is deleted
+      
+        if (error) {
+          console.error('Error deleting expense:', error);
+        } else {
+          // Re-fetch expenses after deletion
+          fetchPersonalTotal();
+          fetchFamilyTotal();
+          fetchRecentExpenses();
+          fetchPersonalExpenses();
+          
+        }
+      };
+
+    useEffect(() => {
+      fetchFamilyData();
+    }, [userProfile]);
+
+    useEffect(() => {
+      fetchRecentExpenses();
+    }, [userProfile, family?.id]);
+
+    useEffect(() => {
+      fetchPersonalExpenses();
+    }, [userProfile]);
+
+    useEffect(() => {
+      fetchPersonalTotal();
+    }, [userProfile]);
+
+    useEffect(() => {
+      fetchFamilyTotal();
+    }, [userProfile, family?.id]);
+
+    if (loading) {
+        return (
+          <AppSidebarLayout>
+            <div className="flex flex-col h-full">
+              <AppNavbar />
+              <div className="flex-1 p-6">
+                <div className="flex flex-col items-right justify-start">
+                    <Skeleton className="h-[40px] w-[200px] rounded-full mb-[2rem]" />
+                    <Skeleton className="h-[150px] w-[350px] rounded-lg mb-[2rem]" />
+                    <Skeleton className="h-[40px] w-[300px] rounded-full mb-[2rem]" />               
+                    <Skeleton className="h-[150px] w-[350px] rounded-lg mb-[2rem]" />
+                    <Skeleton className="h-[150px] w-[350px] rounded-lg" />
+                </div>
+              </div>
+            </div>
+          </AppSidebarLayout>
+        );
+      }    
+    
+    else if (!family) {
+        return (
+            <AppSidebarLayout>
+                <div className="flex flex-col h-full">
+                <AppNavbar />
+                <div className="flex-1 p-6">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold mb-4">Expense Management</h1>
+                        <p className="text-muted-foreground text-lg">
+                        Create a new family or join an existing one from the <b>Family</b> page to start tracking expenses together.
+                        </p>
+                        <Link href='/family'>
+                            <Button className="mt-[4rem] h-12 w-60 text-base" variant="default">
+                            Go to Family Page
+                            <ArrowBigRight className="h-4 w-4 ml-2"/>
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+                </div>
+            </AppSidebarLayout>
+        )
+    }
+    
+    return (
+        <AppSidebarLayout>
+          <div className="flex flex-col h-full">
+            <AppNavbar />
+            <div className="flex-1 p-6 space-y-6">
+                {/* overview card */}
+              <Card className="">
+                <CardHeader className="">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-2xl font-bold">Overview</CardTitle>
+                      {/* <div className="flex flex-row gap-0.25">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground px-2">today</Button>
+                        <Button variant="ghost" size="sm" className="text-foreground font-semibold px-2">7d</Button>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground px-2">15d</Button>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground px-2">30d</Button>
+                      </div> */}
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex">
+                        <h3 className="text-muted-foreground mr-2">Family:</h3>
+                        <h3 className="font-medium text-foreground">Rs. {formatNumber(familyTotal)}</h3>
+                    </div>
+                    <div className="flex mt-1">
+                        <h3 className="text-muted-foreground mr-2">Personal:</h3>
+                        <h3 className="font-medium text-foreground">Rs. {formatNumber(personalTotal)}</h3>
+                    </div>
+                    {/* <div className="flex mt-1">
+                        <h3 className="text-muted-foreground mr-2">Most spent on:</h3>
+                        <h3 className="font-medium text-foreground">Utilities</h3>
+                    </div> */}
+                </CardContent>
+              </Card>
+            
+            {/* recents card */}
+            <Card className="py-1 px-6">
+              <Accordion type="single" collapsible defaultValue="">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="text-xl font-semibold">
+                        Recent Family Expenses
+                    </AccordionTrigger>
+                    <AccordionContent className="">
+                        <Table>
+                            <TableCaption>Last 5 expenses you and your family made.</TableCaption>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>No.</TableHead>
+                                    <TableHead>Expense</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Person</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {r_expenses?.map((r_exp, index) => (
+                                    <TableRow key={r_exp.id}>
+                                        <TableCell>{index + 1}.</TableCell>
+                                        <TableCell>{r_exp.expense_title}</TableCell>
+                                        <TableCell className="text-right">Rs. {formatNumber(r_exp.amount)}</TableCell>
+                                        <TableCell className="text-right">{r_exp.username}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+              </Accordion>
+            </Card>
+            
+            {/* all expenses card */}
+            <Card className="py-1 px-6">
+              <Accordion type="single" collapsible defaultValue="">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="text-xl font-semibold">
+                        Personal Expenses
+                    </AccordionTrigger>
+                    <AccordionContent className="">
+                        <Table>
+                            <TableCaption>All your personal expenses.</TableCaption>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>No.</TableHead>
+                                    <TableHead>Expense</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Type</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {p_expenses?.map((exp, index) => (
+                                <Popover key={exp.id}>
+                                    <PopoverTrigger asChild>                                      
+                                          <TableRow>
+                                            <TableCell>{index + 1}.</TableCell>
+                                            <TableCell>{exp.expense_title}</TableCell>
+                                            <TableCell className="text-right">Rs. {formatNumber(exp.amount)}</TableCell>
+                                            <TableCell className="text-right">{exp.type}</TableCell>
+                                          </TableRow>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-70 overflow-y-scroll">
+                                        <div className="grid gap-2">
+                                            <div className="flex flex-row justify-between gap-4 mb-3">
+                                                <h2 className="font-semibold">Expense Details:</h2>
+                                                <div className="flex font-semibold gap-2">
+                                                  {/* <Button variant="ghost" className="h-4 w-4 py-2 mt-1">
+                                                    <Pencil />
+                                                  </Button> */}
+                                                  <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                      <Button variant="ghost" className="h-4 w-4 py-2 mt-1">
+                                                        <Trash2 className="text-destructive" />
+                                                      </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                      <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                          Are you sure you want to delete the expense <b>{exp.expense_title}</b>? This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                      </AlertDialogHeader>
+                                                      <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                          onClick={() => deleteExpense(exp.id)}
+                                                          className="bg-destructive text-secondary"
+                                                        >
+                                                          Delete
+                                                        </AlertDialogAction>
+                                                      </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                  </AlertDialog>
+                                                </div>                                            
+                                            </div>
+                                            <div className="flex justify-between gap-4 px-2">
+                                                <h4 className="text-muted-foreground">Expense:</h4>
+                                                <h4 className="text-foreground font-medium">{exp.expense_title}</h4>
+                                            </div>
+                                            <div className="flex justify-between gap-4 px-2">
+                                                <h4 className="text-muted-foreground">Amount:</h4>
+                                                <h4 className="text-foreground font-medium">Rs. {formatNumber(exp.amount)}</h4>
+                                            </div>
+                                            <div className="flex justify-between gap-4 px-2">
+                                                <h4 className="text-muted-foreground">Category:</h4>
+                                                <h4 className="text-foreground font-medium">{exp.categories?.name || 'Not defined'}</h4>
+                                            </div>
+                                            <div className="flex justify-between gap-4 px-2">
+                                                <h4 className="text-muted-foreground">Payment:</h4>
+                                                <h4 className="text-foreground font-medium">{exp.type}</h4>
+                                            </div>
+                                            <div className="flex justify-between gap-4 px-2">
+                                                <h4 className="text-muted-foreground">Note:</h4>
+                                                <p className="text-foreground font-medium h-auto overflow-x-auto">{exp.note}</p>
+                                            </div>
+                                            <div className="flex justify-between gap-4 px-2">
+                                                <h4 className="text-muted-foreground">Date:</h4>
+                                                <h4 className="text-foreground font-medium">{formatDate(exp.created_at)}</h4>
+                                            </div>
+                                            <div className="flex justify-between gap-4 px-2">
+                                                <h4 className="text-muted-foreground">Time:</h4>
+                                                <h4 className="text-foreground font-medium">{formatTime(exp.created_at)}</h4>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                                        ))}
+                            </TableBody>
+                        </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+              </Accordion>
+              </Card>                                            
+            </div>
+          </div>
+        </AppSidebarLayout>
+      );
+}
