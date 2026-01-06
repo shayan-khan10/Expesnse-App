@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/auth/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -41,8 +42,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
   );
 }
+

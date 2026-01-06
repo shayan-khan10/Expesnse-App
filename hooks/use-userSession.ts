@@ -4,31 +4,34 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
-type Profile = {
-  id: string
+export type UserContext = {
+  user_id: string
   username: string
   avatar_url: string | null
-  created_at: string
+  family_id: string | null
+  role: "admin" | "member" | null
+  family_name: string | null
+  join_code: string | null
+  monthly_spending_limit: number | null
 }
 
-type UserSessionState = {
+export type UserSessionState = {
   user: User | null
-  profile: Profile | null
+  userContext: UserContext | null
   loading: boolean
   isAuthenticated: boolean
+  refreshContext: () => Promise<void>
 }
 
 export function useUserSession(): UserSessionState {
   const supabase = createClient()
 
   const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [userContext, setUserContext] = useState<UserContext | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let isMounted = true
-
-    const loadSession = async () => {
+  const loadSession = async () => {
+    try {
       setLoading(true)
 
       const {
@@ -36,38 +39,51 @@ export function useUserSession(): UserSessionState {
         error,
       } = await supabase.auth.getUser()
 
-      if (!isMounted) return
-
       if (error || !user) {
         setUser(null)
-        setProfile(null)
-        setLoading(false)
+        setUserContext(null)
         return
       }
 
       setUser(user)
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, username, avatar_url, created_at")
-        .eq("id", user.id)
-        .maybeSingle()
+      // Call RPC to get context (profile + membership)
+      // This is the SINGLE canonical source of truth for identity
+      const { data: context, error: contextError } = await supabase.rpc("get_my_context")
 
-      if (!isMounted) return
-
-      if (profileError) {
-        // IMPORTANT:
-        // We do NOT auto-create a profile here.
-        // Profile creation is an explicit onboarding flow.
-        setProfile(null)
+      if (contextError) {
+        // If RPC fails, we are in a bad state, but user is authenticated.
+        console.error("Failed to fetch user context:", contextError)
+        setUserContext(null)
       } else {
-        setProfile(profileData)
-      }
+        // RPC returns a single row. If no profile, it might be empty?
+        // Query: SELECT ... FROM profiles ... LEFT JOIN family_members ...
+        // It returns 0 rows if no profile matches auth.uid().
+        // It returns 1 row if profile exists.
 
+        if (context && context.length > 0) {
+          // RPC returns array of rows. logic implies 1 row.
+          setUserContext(context[0] as UserContext)
+        } else {
+          // Should not happen if profile is auto-created, but handle safely
+          setUserContext(null)
+        }
+      }
+    } catch (err) {
+      console.error("Session load error:", err)
+      setUser(null)
+      setUserContext(null)
+    } finally {
       setLoading(false)
     }
+  }
 
-    loadSession()
+  useEffect(() => {
+    let isMounted = true
+
+    loadSession().then(() => {
+      if (!isMounted) return
+    })
 
     const {
       data: { subscription },
@@ -83,8 +99,9 @@ export function useUserSession(): UserSessionState {
 
   return {
     user,
-    profile,
+    userContext,
     loading,
     isAuthenticated: Boolean(user),
+    refreshContext: loadSession,
   }
 }

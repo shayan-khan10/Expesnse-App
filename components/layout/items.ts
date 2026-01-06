@@ -1,20 +1,20 @@
 import {
-  IconCategory2,
-  IconHome,
-  IconUsers,
-  IconReportMoney,
-  IconBrandGoogleAnalytics,
-  IconUser,
-} from "@tabler/icons-react"
+  LayoutGrid,
+  Home,
+  Users,
+  Receipt,
+  BarChart3,
+  User,
+} from "lucide-react"
 
 export const navigation = [
-  { title: "Home", url: "/", icon: IconHome },
-  { title: "Family", url: "/family", icon: IconUsers },
-  { title: "Categories", url: "/categories", icon: IconCategory2 },
-  { title: "Expenses", url: "/expenses", icon: IconReportMoney },
-  { title: "Analytics", url: "/analytics", icon: IconBrandGoogleAnalytics },
+  { title: "Home", url: "/", icon: Home },
+  { title: "Family", url: "/family", icon: Users },
+  { title: "Categories", url: "/categories", icon: LayoutGrid },
+  { title: "Expenses", url: "/expenses", icon: Receipt },
+  { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ]
 
 export const settings = [
-  { title: "Profile", url: "/profile", icon: IconUser },
+  { title: "Profile", url: "/profile", icon: User },
 ]
